@@ -302,11 +302,25 @@ class AgentExchangeClient:
             rounded_qty = self.round_quantity(symbol, qty)
             rounded_price = self.round_price(symbol, price)
             ccxt_symbol = self._to_ccxt_symbol(symbol)
-            order = await self.exchange.create_order(
-                ccxt_symbol, "limit", side.lower(), float(rounded_qty), float(rounded_price),
-                {"reduceOnly": True, "timeInForce": "GTC", "hedged": False}
-            )
-            order_id = order["id"]
+            if self.exchange_id == "bitget":
+                result = await self.exchange.private_mix_post_v2_mix_order_place_order({
+                    "symbol": symbol,
+                    "productType": "USDT-FUTURES",
+                    "marginMode": "crossed",
+                    "marginCoin": "USDT",
+                    "side": side.lower(),
+                    "orderType": "limit",
+                    "price": str(rounded_price),
+                    "size": str(rounded_qty),
+                    "force": "GTC",
+                })
+                order_id = result["data"]["orderId"]
+            else:
+                order = await self.exchange.create_order(
+                    ccxt_symbol, "limit", side.lower(), float(rounded_qty), float(rounded_price),
+                    {"reduceOnly": True, "timeInForce": "GTC"}
+                )
+                order_id = order["id"]
             logger.info(f"TP order placed: {side} {rounded_qty} {symbol} @ {rounded_price} (ID: {order_id})")
             return order_id
         except Exception as e:
